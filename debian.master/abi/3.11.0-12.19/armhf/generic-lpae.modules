@@ -2630,7 +2630,6 @@ videodev
 viperboard
 viperboard_adc
 virtio_balloon
-virtio_console
 virtio-rng
 virtio_scsi
 virtual

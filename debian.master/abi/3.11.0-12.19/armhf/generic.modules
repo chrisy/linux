@@ -3435,7 +3435,6 @@ videodev
 viperboard
 viperboard_adc
 virtio_balloon
-virtio_console
 virtio-rng
 virtio_rpmsg_bus
 virtio_scsi
