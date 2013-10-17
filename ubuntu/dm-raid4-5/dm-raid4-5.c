@@ -910,7 +910,7 @@ static int raid_dev_lookup(struct raid_set *rs, struct raid_dev *dev_lookup)
  * Stripe hash functions
  */
 /* Initialize/destroy stripe hash. */
-static int hash_init(struct stripe_hash *hash, unsigned stripes)
+static int dm45_hash_init(struct stripe_hash *hash, unsigned stripes)
 {
 	unsigned buckets = 2, max_buckets = stripes >> 1;
 	static unsigned hash_primes[] = {
@@ -996,7 +996,7 @@ static int sc_hash_resize(struct stripe_cache *sc)
 		int r;
 		struct stripe_hash hash;
 
-		r = hash_init(&hash, atomic_read(&sc->stripes));
+		r = dm45_hash_init(&hash, atomic_read(&sc->stripes));
 		if (r)
 			return r;
 
@@ -1723,7 +1723,7 @@ static void bio_copy_page_list(int rw, struct stripe *stripe,
 	bio_for_each_segment(bv, bio, i) {
 		int len = bv->bv_len, size;
 		unsigned bio_offset = 0;
-		void *bio_addr = __bio_kmap_atomic(bio, i, KM_USER0);
+		void *bio_addr = __bio_kmap_atomic(bio, i);
 redo:
 		size = (page_offset + len > PAGE_SIZE) ?
 		       PAGE_SIZE - page_offset : len;
@@ -1756,7 +1756,7 @@ redo:
 			}
 		}
 
-		__bio_kunmap_atomic(bio_addr, KM_USER0);
+		__bio_kunmap_atomic(bio_addr);
 	}
 }
 
