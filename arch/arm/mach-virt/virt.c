@@ -21,11 +21,13 @@
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/smp.h>
+#include <linux/clk-provider.h>
 
 #include <asm/mach/arch.h>
 
 static void __init virt_init(void)
 {
+	of_clk_init(NULL);
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 }
 
