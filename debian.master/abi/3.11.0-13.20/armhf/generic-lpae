@@ -2665,6 +2665,13 @@ EXPORT_SYMBOL sound/usb/snd-usbmidi-lib 0x07cffb2b	snd_usbmidi_create
 EXPORT_SYMBOL sound/usb/snd-usbmidi-lib 0x16756dc0	snd_usbmidi_input_start
 EXPORT_SYMBOL sound/usb/snd-usbmidi-lib 0x63343b1d	snd_usbmidi_input_stop
 EXPORT_SYMBOL sound/usb/snd-usbmidi-lib 0xd9d2bb03	snd_usbmidi_disconnect
+EXPORT_SYMBOL ubuntu/dm-raid4-5/dm-raid45 0x35c95b1b	dm_mem_cache_client_create
+EXPORT_SYMBOL ubuntu/dm-raid4-5/dm-raid45 0x68640b1b	dm_mem_cache_alloc
+EXPORT_SYMBOL ubuntu/dm-raid4-5/dm-raid45 0x86e5acf9	dm_mem_cache_grow
+EXPORT_SYMBOL ubuntu/dm-raid4-5/dm-raid45 0x920a7a41	dm_message_parse
+EXPORT_SYMBOL ubuntu/dm-raid4-5/dm-raid45 0xa43471b6	dm_mem_cache_shrink
+EXPORT_SYMBOL ubuntu/dm-raid4-5/dm-raid45 0xd55b290c	dm_mem_cache_client_destroy
+EXPORT_SYMBOL ubuntu/dm-raid4-5/dm-raid45 0xfd0b67f1	dm_mem_cache_free
 EXPORT_SYMBOL ubuntu/lttng/lib/lttng-lib-ring-buffer 0x2776a3e5	lib_ring_buffer_nesting
 EXPORT_SYMBOL vmlinux 0x00000000	softirq_work_list
 EXPORT_SYMBOL vmlinux 0x0022bde3	bdi_set_max_ratio
@@ -3688,6 +3695,7 @@ EXPORT_SYMBOL vmlinux 0x420b515d	dev_mc_init
 EXPORT_SYMBOL vmlinux 0x420bacf2	scsi_reset_provider
 EXPORT_SYMBOL vmlinux 0x4211c3c1	zlib_inflateInit2
 EXPORT_SYMBOL vmlinux 0x423636b1	sock_kfree_s
+EXPORT_SYMBOL vmlinux 0x423f8599	ipv6_chk_custom_prefix
 EXPORT_SYMBOL vmlinux 0x4250eed0	blk_dump_rq_flags
 EXPORT_SYMBOL vmlinux 0x4261b606	qdisc_watchdog_cancel
 EXPORT_SYMBOL vmlinux 0x426f3496	mmc_add_host
@@ -6708,6 +6716,7 @@ EXPORT_SYMBOL_GPL drivers/hid/hid 0xe0263005	hid_ignore
 EXPORT_SYMBOL_GPL drivers/hid/hid 0xe0b93253	hid_input_report
 EXPORT_SYMBOL_GPL drivers/hid/hid 0xe6f3555d	hidinput_count_leds
 EXPORT_SYMBOL_GPL drivers/hid/hid 0xe9f62a08	hid_validate_values
+EXPORT_SYMBOL_GPL drivers/hid/hid 0xed87ff41	hid_alloc_report_buf
 EXPORT_SYMBOL_GPL drivers/hid/hid 0xf205b812	hidraw_report_event
 EXPORT_SYMBOL_GPL drivers/hid/hid 0xf4f45404	hid_dump_field
 EXPORT_SYMBOL_GPL drivers/hid/hid 0xfeca9cb9	hidinput_calc_abs_res
@@ -7538,10 +7547,10 @@ EXPORT_SYMBOL_GPL drivers/net/wimax/i2400m/i2400m 0xc3e3b652	i2400m_dev_reset_ha
 EXPORT_SYMBOL_GPL drivers/net/wimax/i2400m/i2400m 0xcd2650ae	i2400m_init
 EXPORT_SYMBOL_GPL drivers/net/wimax/i2400m/i2400m 0xd2d764fa	i2400m_pre_reset
 EXPORT_SYMBOL_GPL drivers/net/wimax/i2400m/i2400m 0xf1db5203	i2400m_cmd_enter_powersave
-EXPORT_SYMBOL_GPL drivers/net/wireless/cw1200/cw1200_core 0x4dff4453	cw1200_core_release
-EXPORT_SYMBOL_GPL drivers/net/wireless/cw1200/cw1200_core 0xc1ce28fb	cw1200_irq_handler
-EXPORT_SYMBOL_GPL drivers/net/wireless/cw1200/cw1200_core 0xc5a1072c	cw1200_core_probe
-EXPORT_SYMBOL_GPL drivers/net/wireless/cw1200/cw1200_core 0xfd08ca28	cw1200_can_suspend
+EXPORT_SYMBOL_GPL drivers/net/wireless/cw1200/cw1200_core 0x1e796d71	cw1200_core_release
+EXPORT_SYMBOL_GPL drivers/net/wireless/cw1200/cw1200_core 0x322d3466	cw1200_irq_handler
+EXPORT_SYMBOL_GPL drivers/net/wireless/cw1200/cw1200_core 0x43ced188	cw1200_core_probe
+EXPORT_SYMBOL_GPL drivers/net/wireless/cw1200/cw1200_core 0x80799f39	cw1200_can_suspend
 EXPORT_SYMBOL_GPL drivers/net/wireless/libertas/libertas 0x014978bb	lbs_suspend
 EXPORT_SYMBOL_GPL drivers/net/wireless/libertas/libertas 0x2db9b866	lbs_remove_card
 EXPORT_SYMBOL_GPL drivers/net/wireless/libertas/libertas 0x2f467e02	__lbs_cmd
@@ -11121,6 +11130,7 @@ EXPORT_SYMBOL_GPL vmlinux 0x9ed554b3	unregister_keyboard_notifier
 EXPORT_SYMBOL_GPL vmlinux 0x9ed996a8	debugfs_create_bool
 EXPORT_SYMBOL_GPL vmlinux 0x9ee37756	pm_generic_resume_noirq
 EXPORT_SYMBOL_GPL vmlinux 0x9ef06e8a	snd_pcm_add_chmap_ctls
+EXPORT_SYMBOL_GPL vmlinux 0x9f0664bf	dm_get_queue_limits
 EXPORT_SYMBOL_GPL vmlinux 0x9f30f83d	crypto_aead_setauthsize
 EXPORT_SYMBOL_GPL vmlinux 0x9f3f98e1	of_get_nand_on_flash_bbt
 EXPORT_SYMBOL_GPL vmlinux 0x9f517986	HYPERVISOR_hvm_op
@@ -11231,7 +11241,6 @@ EXPORT_SYMBOL_GPL vmlinux 0xa8a92393	get_kernel_page
 EXPORT_SYMBOL_GPL vmlinux 0xa8efe65d	debugfs_create_x16
 EXPORT_SYMBOL_GPL vmlinux 0xa8f59416	gpio_direction_output
 EXPORT_SYMBOL_GPL vmlinux 0xa90b07a9	anon_inode_getfd
-EXPORT_SYMBOL_GPL vmlinux 0xa91af10b	usb_bus_start_enum
 EXPORT_SYMBOL_GPL vmlinux 0xa92541c5	of_dma_controller_register
 EXPORT_SYMBOL_GPL vmlinux 0xa95766a7	tty_encode_baud_rate
 EXPORT_SYMBOL_GPL vmlinux 0xa9707968	raw_seq_stop

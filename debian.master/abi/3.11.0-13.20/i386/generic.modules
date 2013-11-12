@@ -785,6 +785,7 @@ dm-multipath
 dm-persistent-data
 dm-queue-length
 dm-raid
+dm-raid45
 dm-region-hash
 dm-round-robin
 dm-service-time
