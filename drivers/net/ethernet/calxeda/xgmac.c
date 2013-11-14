@@ -360,6 +360,13 @@ struct xgmac_extra_stats {
 	unsigned long rx_process_stopped;
 	unsigned long tx_early;
 	unsigned long fatal_bus_error;
+	unsigned long learning_drop;
+};
+
+struct xgmac_mac {
+	char mac_addr[ETH_ALEN];
+	unsigned long time;
+	bool rm_pending;
 };
 
 struct xgmac_priv {
@@ -384,6 +391,8 @@ struct xgmac_priv {
 	struct napi_struct napi;
 
 	int max_macs;
+	struct xgmac_mac mac_list[32];
+
 	struct xgmac_extra_stats xstats;
 
 	spinlock_t stats_lock;
@@ -392,6 +401,7 @@ struct xgmac_priv {
 	char tx_pause;
 	int wolopts;
 	struct work_struct tx_timeout_work;
+	struct delayed_work mac_aging_work;
 };
 
 /* XGMAC Configuration Settings */
@@ -634,7 +644,7 @@ static void xgmac_set_mac_addr(void __iomem *ioaddr, unsigned char *addr,
 	}
 }
 
-static void xgmac_get_mac_addr(void __iomem *ioaddr, unsigned char *addr,
+static bool xgmac_get_mac_addr(void __iomem *ioaddr, unsigned char *addr,
 			       int num)
 {
 	u32 hi_addr, lo_addr;
@@ -650,6 +660,8 @@ static void xgmac_get_mac_addr(void __iomem *ioaddr, unsigned char *addr,
 	addr[3] = (lo_addr >> 24) & 0xff;
 	addr[4] = hi_addr & 0xff;
 	addr[5] = (hi_addr >> 8) & 0xff;
+
+	return (hi_addr & XGMAC_ADDR_AE) ? true : false;
 }
 
 static int xgmac_set_flow_ctrl(struct xgmac_priv *priv, int rx, int tx)
@@ -1047,6 +1059,8 @@ static int xgmac_open(struct net_device *dev)
 	writel(DMA_INTR_DEFAULT_MASK, ioaddr + XGMAC_DMA_STATUS);
 	writel(DMA_INTR_DEFAULT_MASK, ioaddr + XGMAC_DMA_INTR_ENA);
 
+	schedule_delayed_work(&priv->mac_aging_work, 5 * HZ);
+
 	return 0;
 }
 
@@ -1059,6 +1073,7 @@ static int xgmac_open(struct net_device *dev)
 static int xgmac_stop(struct net_device *dev)
 {
 	struct xgmac_priv *priv = netdev_priv(dev);
+	int i;
 
 	netif_stop_queue(dev);
 
@@ -1073,7 +1088,109 @@ static int xgmac_stop(struct net_device *dev)
 	/* Release and free the Rx/Tx resources */
 	xgmac_free_dma_desc_rings(priv);
 
+	cancel_delayed_work_sync(&priv->mac_aging_work);
+	for (i = 0; i < priv->max_macs; i++) {
+		if (!is_valid_ether_addr(priv->mac_list[i].mac_addr))
+			continue;
+		dev_uc_del(dev, priv->mac_list[i].mac_addr);
+		memset(&priv->mac_list[i], 0, sizeof(priv->mac_list[i]));
+	}
+
 	return 0;
+}
+
+static void xgmac_check_mac_addrs(struct xgmac_priv *priv)
+{
+	int i, j;
+	char addr[ETH_ALEN];
+
+	for (i = 1; i < priv->max_macs; i++) {
+		if (xgmac_get_mac_addr(priv->base, addr, i))
+			continue;
+
+		if (!is_valid_ether_addr(addr))
+			break;
+
+		for (j = 1; j < priv->max_macs; j++) {
+			if (!ether_addr_equal(addr, priv->mac_list[j].mac_addr))
+				continue;
+			priv->mac_list[j].rm_pending = true;
+			break;
+		}
+	}
+}
+
+static bool xgmac_mac_rm_pending(struct xgmac_priv *priv, const u8 *addr)
+{
+	int i;
+
+	for (i = 1; i < priv->max_macs; i++) {
+		if (ether_addr_equal(addr, priv->mac_list[i].mac_addr) &&
+		    priv->mac_list[i].rm_pending)
+			return true;
+	}
+	return false;
+}
+
+static void xgmac_mac_aging_work(struct work_struct *work)
+{
+	int i;
+	struct xgmac_priv *priv =
+		container_of(work, struct xgmac_priv, mac_aging_work.work);
+	struct net_device *dev = priv->dev;
+
+	xgmac_check_mac_addrs(priv);
+
+	for (i = 1; i < priv->max_macs; i++) {
+		if (!priv->mac_list[i].rm_pending)
+			continue;
+
+		dev_uc_del(dev, priv->mac_list[i].mac_addr);
+		priv->mac_list[i].rm_pending = false;
+		priv->mac_list[i].time = 0;
+		memset(priv->mac_list[i].mac_addr, 0, ETH_ALEN);
+	}
+
+	schedule_delayed_work(to_delayed_work(work), 10 * HZ);
+}
+
+static void xgmac_learn_mac(struct xgmac_priv *priv, struct sk_buff *skb)
+{
+	struct net_device *dev = priv->dev;
+	struct ethhdr *phdr = (struct ethhdr *)(skb->data);
+	char *src_addr = phdr->h_source;
+	int i, slot = -1, oldest_slot = -1;
+	unsigned long oldest_time = jiffies;
+
+	if (ether_addr_equal(src_addr, dev->dev_addr) ||
+	    !is_valid_ether_addr(src_addr))
+		return;
+
+	for (i = 0; i < priv->max_macs; i++) {
+		/* update timestamp if we already learned the address */
+		if (ether_addr_equal(priv->mac_list[i].mac_addr, src_addr)) {
+			priv->mac_list[i].time = jiffies;
+			return;
+		}
+		/* find empty slot */
+		if (slot >= 0)
+			continue;
+		if (!priv->mac_list[i].time)
+			slot = i;
+		else if (time_before(priv->mac_list[i].time, oldest_time)) {
+			oldest_time = priv->mac_list[i].time;
+			oldest_slot = i;
+		}
+	}
+	if ((slot < 0) && (oldest_slot >= 0)) {
+		slot = oldest_slot;
+		priv->xstats.learning_drop++;
+		dev_uc_del(dev, priv->mac_list[slot].mac_addr);
+	}
+
+	memcpy(priv->mac_list[slot].mac_addr, src_addr, ETH_ALEN);
+	dev_uc_add_excl(dev, src_addr);
+	priv->mac_list[slot].time = jiffies;
 }
 
 /**
@@ -1155,6 +1272,9 @@ static netdev_tx_t xgmac_xmit(struct sk_buff *skb, struct net_device *dev)
 		if (tx_dma_ring_space(priv) > MAX_SKB_FRAGS)
 			netif_start_queue(dev);
 	}
+
+	xgmac_learn_mac(priv, skb);
+
 	return NETDEV_TX_OK;
 
 dma_err:
@@ -1291,6 +1411,8 @@ static void xgmac_set_rx_mode(struct net_device *dev)
 	netdev_dbg(priv->dev, "# mcasts %d, # unicast %d\n",
 		 netdev_mc_count(dev), netdev_uc_count(dev));
 
+	xgmac_check_mac_addrs(priv);
+
 	if (dev->flags & IFF_PROMISC)
 		value |= XGMAC_FRAME_FILTER_PR;
 
@@ -1309,6 +1431,8 @@ static void xgmac_set_rx_mode(struct net_device *dev)
 			 * within the register. */
 			hash_filter[bit_nr >> 5] |= 1 << (bit_nr & 31);
 		} else {
+			if (xgmac_mac_rm_pending(priv, ha->addr))
+				continue;
 			xgmac_set_mac_addr(ioaddr, ha->addr, reg);
 			reg++;
 		}
@@ -1605,6 +1729,7 @@ static const struct xgmac_stats xgmac_gstrings_stats[] = {
 	XGMAC_STAT(rx_ip_header_error),
 	XGMAC_STAT(rx_da_filter_fail),
 	XGMAC_STAT(fatal_bus_error),
+	XGMAC_STAT(learning_drop),
 	XGMAC_HW_STAT(rx_watchdog, XGMAC_MMC_RXWATCHDOG),
 	XGMAC_HW_STAT(tx_vlan, XGMAC_MMC_TXVLANFRAME),
 	XGMAC_HW_STAT(rx_vlan, XGMAC_MMC_RXVLANFRAME),
@@ -1743,6 +1868,7 @@ static int xgmac_probe(struct platform_device *pdev)
 	SET_ETHTOOL_OPS(ndev, &xgmac_ethtool_ops);
 	spin_lock_init(&priv->stats_lock);
 	INIT_WORK(&priv->tx_timeout_work, xgmac_tx_timeout_work);
+	INIT_DELAYED_WORK(&priv->mac_aging_work, xgmac_mac_aging_work);
 
 	priv->device = &pdev->dev;
 	priv->dev = ndev;
