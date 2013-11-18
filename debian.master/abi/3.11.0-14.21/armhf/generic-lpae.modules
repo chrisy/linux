@@ -1806,7 +1806,6 @@ raid456
 raid6_pq
 raid6test
 raid_class
-ramoops
 raw
 rbd
 rbtree_test
@@ -1919,7 +1918,6 @@ rds
 rds_tcp
 redboot
 redrat3
-reed_solomon
 reiserfs
 remoteproc
 renesas_usbhs
