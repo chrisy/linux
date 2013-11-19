@@ -9414,9 +9414,8 @@ static void quirk_invert_brightness(struct drm_device *dev)
  */
 static void quirk_no_pcm_pwm_enable(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	dev_priv->quirks |= QUIRK_NO_PCH_PWM_ENABLE;
-	DRM_INFO("applying no-PCH_PWM_ENABLE quirk\n");
+	if (i915_disable_pch_pwm < 0)
+		i915_disable_pch_pwm = 1;
 }
 
 struct intel_quirk {
@@ -9513,6 +9512,12 @@ static void intel_init_quirks(struct drm_device *dev)
 	for (i = 0; i < ARRAY_SIZE(intel_dmi_quirks); i++) {
 		if (dmi_check_system(*intel_dmi_quirks[i].dmi_id_list) != 0)
 			intel_dmi_quirks[i].hook(dev);
+	}
+
+	if (i915_disable_pch_pwm == 1) {
+		struct drm_i915_private *dev_priv = dev->dev_private;
+		dev_priv->quirks |= QUIRK_NO_PCH_PWM_ENABLE;
+		DRM_INFO("applying no-PCH_PWM_ENABLE quirk\n");
 	}
 }
 
