@@ -2052,7 +2052,6 @@ ocfs2_stackglue
 ocfs2_stack_o2cb
 ocfs2_stack_user
 ocrdma
-ohci-pci
 old_belkin-sir
 olpc_apsp
 omap
