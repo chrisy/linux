@@ -829,7 +829,11 @@ static inline void alc_shutup(struct hda_codec *codec)
 	snd_hda_shutup_pins(codec);
 }
 
-#define alc_free	snd_hda_gen_free
+static void alc_free(struct hda_codec *codec)
+{
+	snd_hda_apply_fixup(codec, HDA_FIXUP_ACT_FREE);
+	snd_hda_gen_free(codec);
+}
 
 #ifdef CONFIG_PM
 static void alc_power_eapd(struct hda_codec *codec)
@@ -3317,6 +3321,74 @@ static void alc290_fixup_mono_speakers(struct hda_codec *codec,
 		snd_hda_override_wcaps(codec, 0x03, 0);
 }
 
+#if IS_ENABLED(CONFIG_THINKPAD_ACPI)
+
+#include <linux/thinkpad_acpi.h>
+
+static int (*led_set_func)(int, bool);
+
+static void update_tpacpi_mute_led(void *private_data, int enabled)
+{
+	if (led_set_func)
+		led_set_func(TPACPI_LED_MUTE, !enabled);
+}
+
+static void update_tpacpi_micmute_led(struct hda_codec *codec,
+				      struct snd_ctl_elem_value *ucontrol)
+{
+	if (!ucontrol || !led_set_func)
+		return;
+	if (strcmp("Capture Switch", ucontrol->id.name) == 0 && ucontrol->id.index == 0) {
+		/* TODO: How do I verify if it's a mono or stereo here? */
+		bool val = ucontrol->value.integer.value[0] || ucontrol->value.integer.value[1];
+		led_set_func(TPACPI_LED_MICMUTE, !val);
+	}
+}
+
+static void alc_fixup_thinkpad_acpi(struct hda_codec *codec,
+				  const struct hda_fixup *fix, int action)
+{
+	struct alc_spec *spec = codec->spec;
+	bool removefunc = false;
+
+	if (action == HDA_FIXUP_ACT_PROBE) {
+		if (!led_set_func)
+			led_set_func = symbol_request(tpacpi_led_set);
+		if (!led_set_func) {
+			snd_printk(KERN_WARNING "Failed to find thinkpad-acpi symbol tpacpi_led_set\n");
+			return;
+		}
+
+		removefunc = true;
+		if (led_set_func(TPACPI_LED_MUTE, false) >= 0) {
+			spec->gen.vmaster_mute.hook = update_tpacpi_mute_led;
+			removefunc = false;
+		}
+		if (led_set_func(TPACPI_LED_MICMUTE, false) >= 0) {
+			if (spec->gen.num_adc_nids > 1)
+				snd_printdd("Skipping micmute LED control due to several ADCs");
+			else {
+				spec->gen.cap_sync_hook = update_tpacpi_micmute_led;
+				removefunc = false;
+			}
+		}
+	}
+
+	if (led_set_func && (action == HDA_FIXUP_ACT_FREE || removefunc)) {
+		symbol_put(tpacpi_led_set);
+		led_set_func = NULL;
+	}
+}
+
+#else
+
+static void alc_fixup_thinkpad_acpi(struct hda_codec *codec,
+				  const struct hda_fixup *fix, int action)
+{
+}
+
+#endif
+
 enum {
 	ALC269_FIXUP_SONY_VAIO,
 	ALC275_FIXUP_SONY_VAIO_GPIO2,
@@ -3356,6 +3428,7 @@ enum {
 	ALC269_FIXUP_ACER_AC700,
 	ALC269_FIXUP_LIMIT_INT_MIC_BOOST,
 	ALC269VB_FIXUP_ORDISSIMO_EVE2,
+	ALC269_FIXUP_THINKPAD_ACPI,
 };
 
 static const struct hda_fixup alc269_fixups[] = {
@@ -3629,6 +3702,12 @@ static const struct hda_fixup alc269_fixups[] = {
 		.chained = true,
 		.chain_id = ALC269_FIXUP_DELL3_MIC_NO_PRESENCE,
 	},
+	[ALC269_FIXUP_THINKPAD_ACPI] = {
+		.type = HDA_FIXUP_FUNC,
+		.v.func = alc_fixup_thinkpad_acpi,
+		.chained = true,
+		.chain_id = ALC269_FIXUP_LIMIT_INT_MIC_BOOST
+	},
 };
 
 static const struct snd_pci_quirk alc269_fixup_tbl[] = {
@@ -3708,6 +3787,7 @@ static const struct snd_pci_quirk alc269_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x17aa, 0x21fb, "Thinkpad T430s", ALC269_FIXUP_LENOVO_DOCK),
 	SND_PCI_QUIRK(0x17aa, 0x2208, "Thinkpad T431s", ALC269_FIXUP_LENOVO_DOCK),
 	SND_PCI_QUIRK(0x17aa, 0x2203, "Thinkpad X230 Tablet", ALC269_FIXUP_LENOVO_DOCK),
+	SND_PCI_QUIRK(0x17aa, 0x2214, "Thinkpad", ALC269_FIXUP_THINKPAD_ACPI),
 	SND_PCI_QUIRK(0x17aa, 0x3bf8, "Quanta FL1", ALC269_FIXUP_PCM_44K),
 	SND_PCI_QUIRK(0x17aa, 0x9e54, "LENOVO NB", ALC269_FIXUP_LENOVO_EAPD),
 	SND_PCI_QUIRK(0x1b7d, 0xa831, "Ordissimo EVE2 ", ALC269VB_FIXUP_ORDISSIMO_EVE2), /* Also known as Malata PC-B1303 */
