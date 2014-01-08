@@ -1,3 +1,11 @@
+linux (3.11.0-16.26) saucy; urgency=low
+
+  [Steve Conklin]
+
+  * Bump again after fixing ABI check
+
+ -- Steve Conklin <sconklin@canonical.com>  Wed, 08 Jan 2014 15:12:54 -0600
+
 linux (3.11.0-16.25) saucy; urgency=low
 
   [Steve Conklin]
