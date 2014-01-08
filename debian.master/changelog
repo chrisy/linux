@@ -1,3 +1,11 @@
+linux (3.11.0-16.25) saucy; urgency=low
+
+  [Steve Conklin]
+
+  * Bump to allow fixing a signed package build error
+
+ -- Steve Conklin <sconklin@canonical.com>  Wed, 08 Jan 2014 10:43:17 -0600
+
 linux (3.11.0-16.24) saucy; urgency=low
 
   [Steve Conklin]
