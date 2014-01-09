@@ -1,3 +1,11 @@
+linux (3.11.0-16.27) saucy; urgency=low
+
+  [Steve Conklin]
+
+  * Bump yet again after fixing ABI check with non-empty ignore files.
+
+ -- Steve Conklin <sconklin@canonical.com>  Thu, 09 Jan 2014 09:00:19 -0600
+
 linux (3.11.0-16.26) saucy; urgency=low
 
   [Steve Conklin]
