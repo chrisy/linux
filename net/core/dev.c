@@ -3478,15 +3478,67 @@ static bool skb_pfmemalloc_protocol(struct sk_buff *skb)
 	}
 }
 
+/*
+ * Dispatch a received skb to the registered protocol handlers.
+ */
+inline int __netif_receive_skb_finish(struct sk_buff *skb,
+	struct packet_type *pt_prev, struct net_device *orig_dev,
+	bool deliver_exact)
+{
+	struct packet_type *ptype;
+	struct net_device *null_or_dev;
+	int ret = NET_RX_DROP;
+	__be16 type = skb->protocol;
+
+	if (unlikely(vlan_tx_tag_present(skb))) {
+		if (vlan_tx_tag_get_id(skb))
+			skb->pkt_type = PACKET_OTHERHOST;
+		/* Note: we might in the future use prio bits
+		 * and set skb->priority like in vlan_do_receive()
+		 * For the time being, just ignore Priority Code Point
+		 */
+		skb->vlan_tci = 0;
+	}
+
+	/* deliver only exact match when indicated */
+	null_or_dev = deliver_exact ? skb->dev : NULL;
+
+	list_for_each_entry_rcu(ptype,
+			&ptype_base[ntohs(type) & PTYPE_HASH_MASK], list) {
+		if (ptype->type == type &&
+		    (ptype->dev == null_or_dev || ptype->dev == skb->dev ||
+		     ptype->dev == orig_dev)) {
+			if (pt_prev)
+				ret = deliver_skb(skb, pt_prev, orig_dev);
+			pt_prev = ptype;
+		}
+	}
+
+	if (pt_prev) {
+		if (unlikely(skb_orphan_frags(skb, GFP_ATOMIC)))
+			ret = -1;
+		else
+			ret = pt_prev->func(skb, skb->dev, pt_prev, orig_dev);
+	} else {
+		ret = -1;
+	}
+
+	return ret;
+}
+
+int netif_receive_skb_finish(struct sk_buff *skb)
+{
+	return __netif_receive_skb_finish(skb, NULL, skb->dev, false);
+}
+EXPORT_SYMBOL(netif_receive_skb_finish);
+
 static int __netif_receive_skb_core(struct sk_buff *skb, bool pfmemalloc)
 {
 	struct packet_type *ptype, *pt_prev;
 	rx_handler_func_t *rx_handler;
 	struct net_device *orig_dev;
-	struct net_device *null_or_dev;
 	bool deliver_exact = false;
 	int ret = NET_RX_DROP;
-	__be16 type;
 
 	net_timestamp_check(!netdev_tstamp_prequeue, skb);
 
@@ -3580,46 +3632,14 @@ ncls:
 		}
 	}
 
-	if (unlikely(vlan_tx_tag_present(skb))) {
-		if (vlan_tx_tag_get_id(skb))
-			skb->pkt_type = PACKET_OTHERHOST;
-		/* Note: we might in the future use prio bits
-		 * and set skb->priority like in vlan_do_receive()
-		 * For the time being, just ignore Priority Code Point
-		 */
-		skb->vlan_tci = 0;
-	}
+	ret = __netif_receive_skb_finish(skb, pt_prev, orig_dev, deliver_exact);
 
-	/* deliver only exact match when indicated */
-	null_or_dev = deliver_exact ? skb->dev : NULL;
-
-	type = skb->protocol;
-	list_for_each_entry_rcu(ptype,
-			&ptype_base[ntohs(type) & PTYPE_HASH_MASK], list) {
-		if (ptype->type == type &&
-		    (ptype->dev == null_or_dev || ptype->dev == skb->dev ||
-		     ptype->dev == orig_dev)) {
-			if (pt_prev)
-				ret = deliver_skb(skb, pt_prev, orig_dev);
-			pt_prev = ptype;
-		}
-	}
-
-	if (pt_prev) {
-		if (unlikely(skb_orphan_frags(skb, GFP_ATOMIC)))
-			goto drop;
-		else
-			ret = pt_prev->func(skb, skb->dev, pt_prev, orig_dev);
-	} else {
+	if (unlikely(ret == -1)) {
+		ret = NET_RX_DROP;
 drop:
 		atomic_long_inc(&skb->dev->rx_dropped);
 		kfree_skb(skb);
-		/* Jamal, now you will not able to escape explaining
-		 * me how you were going to use this. :-)
-		 */
-		ret = NET_RX_DROP;
 	}
-
 unlock:
 	rcu_read_unlock();
 out:
